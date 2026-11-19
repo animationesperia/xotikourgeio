@@ -15,7 +15,50 @@ $('loginBtn').onclick=login;$('password').addEventListener('keydown',e=>{if(e.ke
 async function refresh(){if(!authorized)return;try{let d=await api('staff');paused=d.paused;if(role==='promoter'){$('next').textContent=num(d.next);$('manual').disabled=paused}else{renderAdmin(d)}}catch(e){if(e.message==='Απαιτείται σύνδεση')toggle(false);else error(e)}}
 if(role==='promoter'){$('manual').onclick=async()=>{let b=$('manual');b.disabled=true;try{let d=await api('manual',{count});$('ticket').classList.remove('hidden');$('numbers').textContent=d.ticket.numbers.map(num).join(' · ');await refresh()}catch(e){error(e)}finally{b.disabled=paused}}}
 else{var renderAdmin = function(d){$('current').textContent=d.current===null?'—':num(d.current);$('waiting').textContent=d.waiting;$('served').textContent=d.tickets.filter(t=>t.status==='served').length;$('expired').textContent=d.tickets.filter(t=>t.status==='expired'||t.status==='skipped').length;$('pauseBtn').textContent=d.paused?'Άνοιγμα ουράς':'Παύση νέων αριθμών';let q=$('queue');q.replaceChildren();d.tickets.slice(-100).forEach(t=>{let el=document.createElement('div');el.className='row';let a=document.createElement('b');a.textContent=num(t.number);let b=document.createElement('span');b.textContent=({waiting:'Αναμονή',called:'Τώρα',served:'Ολοκληρώθηκε',expired:'Έληξε',skipped:'Παράλειψη'})[t.status]+' · '+(t.source==='manual'?'Χειρόγραφο':'QR');el.append(a,b);q.append(el)})}
-for(let [id,route] of [['nextBtn','next'],['finishBtn','finish'],['skipBtn','skip']])$(id).onclick=async()=>{try{await api(route,{});refresh()}catch(e){error(e)}};
+
+function playChristmasBells() {
+  try {
+    const AudioContextClass =
+      window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+
+    const ctx = new AudioContextClass();
+    const notes = [784, 988, 1175, 1568];
+
+    notes.forEach((frequency, i) => {
+      const start = ctx.currentTime + i * 0.17;
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      oscillator.type = 'sine';
+      oscillator.frequency.value = frequency;
+
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.16, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.65);
+
+      oscillator.connect(gain);
+      gain.connect(ctx.destination);
+      oscillator.start(start);
+      oscillator.stop(start + 0.65);
+    });
+
+    setTimeout(() => ctx.close(), 1800);
+  } catch (e) {
+    console.warn('Bell sound unavailable', e);
+  }
+}
+
+for(let [id,route] of [['nextBtn','next'],['finishBtn','finish'],['skipBtn','skip']])$(id).onclick=async()=>{
+  try {
+    await api(route,{});
+    if(route==='next') playChristmasBells();
+    refresh();
+  } catch(e) {
+    error(e);
+  }
+};
+
 $('pauseBtn').onclick=async()=>{try{await api('pause',{paused:!paused});refresh()}catch(e){error(e)}};
 $('resetBtn').onclick=async()=>{if(!confirm('Να ακυρωθούν ΟΛΟΙ οι αριθμοί και να ξεκινήσει η ουρά από 001;'))return;try{await api('reset',{confirm:'RESET'});refresh()}catch(e){error(e)}}}
 try{let d=await api('me');if(d.role===role){toggle(true);refresh()}}catch{}
