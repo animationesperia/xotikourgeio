@@ -1,49 +1,16 @@
-# Ξωτικουργείο — Περιστέρι Πολλών Αστέρων
+# Ξωτικουργείο — Supabase + Render
 
-Λειτουργική Node.js εφαρμογή με κοινή ουρά (χωρίς εξωτερικές βιβλιοθήκες).
+## Setup
+1. Run `02_admin_functions.sql` in Supabase SQL Editor AFTER the initial SQL already executed.
+2. Upload `server.js`, `render.yaml`, `public/`, and this README to the ROOT of the GitHub repository (not inside a subfolder). Never upload secret values.
+3. In Render create a Blueprint from this repository; fill the secret environment variables requested by the Blueprint (`SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_PASSWORD`, `PROMOTER_PASSWORD`). `SESSION_SECRET` is generated automatically. Verify the cost/plan is Free before approving.
+4. After deployment test `/`, `/promoter`, `/admin` on separate devices. Do not print the public QR until verified.
 
-## Εκκίνηση
-
-Απαιτείται Node.js 20+.
-
-Σε macOS/Linux:
-
-```bash
-export ADMIN_PASSWORD='βαλε-δυνατο-κωδικο-admin'
-export PROMOTER_PASSWORD='βαλε-αλλο-δυνατο-κωδικο-promoter'
-export SESSION_SECRET='βαλε-τυχαια-μυστικη-φραση-με-τουλαχιστον-24-χαρακτηρες'
-node server.js
-```
-
-Σε Windows PowerShell:
-
-```powershell
-$env:ADMIN_PASSWORD='βαλε-δυνατο-κωδικο-admin'
-$env:PROMOTER_PASSWORD='βαλε-αλλο-δυνατο-κωδικο-promoter'
-$env:SESSION_SECRET='βαλε-τυχαια-μυστικη-φραση-με-τουλαχιστον-24-χαρακτηρες'
-node server.js
-```
-
-- `http://localhost:3000/` — γονείς (το QR θα δείχνει στη δημόσια URL της εγκατάστασης)
-- `http://localhost:3000/promoter` — promoter με δικό του κωδικό
-- `http://localhost:3000/admin` — προσωπικό Face Painting με δικό του κωδικό
-
-Για χρήση από πολλές συσκευές χρειάζεται να εγκατασταθεί σε **έναν κοινό online server με HTTPS**, μόνιμο δίσκο για το `queue-data.json`, και σωστά διαμορφωμένες μεταβλητές περιβάλλοντος. Μη χρησιμοποιείτε πολλά ανεξάρτητα server instances με αυτό το file-based storage. Χρησιμοποιήστε `NODE_ENV=production` όταν υπάρχει HTTPS.
-
-## Συμπεριφορά
-
-- Κάθε έκδοση 1–4 παιδιών δίνει συνεχόμενους αριθμούς, από κοινό μετρητή.
-- Η χειρόγραφη έκδοση γίνεται μόνο στη σελίδα promoter.
-- Ο Admin βλέπει μεγάλο ενεργό αριθμό, πατά «Επόμενος», «Ολοκλήρωση» ή «Παράλειψη».
-- Οι γονείς βλέπουν οπτική ειδοποίηση **μόνο όταν η σελίδα είναι ανοιχτή** και καλείται ένας από τους αριθμούς τους.
-- Αριθμοί σε αναμονή λήγουν σε 60 λεπτά. Ο ήδη κληθείς αριθμός δεν λήγει αυτόματα.
-- Ο μετρητής μηδενίζεται στην αλλαγή ημερολογιακής ημέρας με ζώνη ώρας Europe/Athens.
-- Μετά την έκδοση, ο browser του γονιού κρατά signed HttpOnly cookie που μπλοκάρει νέα έκδοση την ίδια ημέρα ακόμη και μετά από refresh. Η έκδοση που έχει ήδη δοθεί ανακτάται από τον server.
-
-## Σημαντικός περιορισμός QR
-
-**Ένα στατικό QR δεν επιτρέπει να ξεχωρίσουμε με ασφάλεια νέο φυσικό σκανάρισμα από refresh ή άνοιγμα του ίδιου URL.** Γι' αυτό η έκδοση εφαρμόζει τον ασφαλή, προβλέψιμο κανόνα **μία έκδοση ανά browser/συσκευή την ημέρα**. Αν γίνει λάθος, ο promoter εκδίδει χειρόγραφο αριθμό. Αν απαιτείται πραγματικά νέο σκανάρισμα που να ξεκλειδώνει, χρειάζεται διαφορετική ροή με δυναμικό QR/εφάπαξ token ή έλεγχο από τον promoter.
-
-## Ασφάλεια / παραγωγή
-
-Χρειάζεται HTTPS, ιδιωτικοί κωδικοί, ισχυρό SESSION_SECRET, backups και περιορισμός αιτημάτων (rate limiting) στο reverse proxy. Η αποθήκευση JSON εξυπηρετεί ένα μικρό event σε έναν server· για υψηλή κίνηση ή πολλαπλά instances χρησιμοποιήστε transactional database. Δεν συλλέγονται ονόματα/τηλέφωνα, αλλά τα cookies και τα server logs παραμένουν τεχνικά δεδομένα που πρέπει να προστατεύονται.
+## Important limits
+- A static QR and refresh cannot be reliably distinguished. One ticket group per browser per Athens day is enforced by a signed HttpOnly cookie; clearing cookies, private mode, or switching browsers bypasses it. No identity or personal data is collected.
+- A 60-minute expiry is applied when staff state is fetched or Next is pressed, not by a continuous background timer. Expired tickets are never reissued, and called tickets do not expire.
+- The reset button clears today's tickets and resets to 001; use carefully.
+- Public ticket page needs to stay open to show the visual alert. Browser sound/vibration are not guaranteed.
+- Free Render may sleep after inactivity; verify wake-up latency and Supabase free project availability before the event.
+- No built-in rate limiting or anti-bot protection. Do not distribute the QR until safeguards are reviewed for public event use.
+- The original `issue_queue_numbers` SQL function is invoked via the service_role; do not expose this key to clients.
